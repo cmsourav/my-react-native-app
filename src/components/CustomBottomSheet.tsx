@@ -1,10 +1,17 @@
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View, Dimensions } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { CustomBottomSheetProps } from '../types/CustomBottomSheetProps';
 import { useDotAnimation } from '../hooks/useDotAnimation';
 import Feather from 'react-native-vector-icons/Feather';
 
-const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+interface AnimatedBottomSheetProps extends CustomBottomSheetProps {
+  visible: boolean;
+  sheetAnim: Animated.Value;
+}
+
+const CustomBottomSheet: React.FC<AnimatedBottomSheetProps> = ({
   message = 'Processing',
   backgroundColor = '#E6521F',
   dotColor = '#FFF',
@@ -16,6 +23,8 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   onCompleted,
   autoStart = true,
   stopAfter = 4000,
+  visible,
+  sheetAnim,
 }) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const loadingOpacity = useRef(new Animated.Value(1)).current;
@@ -71,12 +80,17 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     }
   }, [stopAfter, loadingOpacity, completedOpacity, completedScale]);
 
+  if (!visible) return null;
+
   return (
-    <View 
+    <Animated.View
       style={[
-        styles.container, 
-        { backgroundColor }, 
-        containerStyle
+        styles.animatedSheet,
+        {
+          backgroundColor,
+          transform: [{ translateY: sheetAnim }],
+        },
+        containerStyle,
       ]}
       accessible={true}
       accessibilityRole="progressbar"
@@ -152,17 +166,26 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         </View>
         <Text style={styles.completedText}>Completed</Text>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 };
 
 export default CustomBottomSheet;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  animatedSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SCREEN_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   loadingContainer: {
     position: 'absolute',

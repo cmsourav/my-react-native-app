@@ -73,9 +73,10 @@ const MessageScreen = () => {
       return;
     }
     setShowPaymentSheet(true);
+    sheetAnim.setValue(SCREEN_HEIGHT);
     Animated.timing(sheetAnim, {
-      toValue: 1,
-      duration: 300,
+      toValue: 0,
+      duration: 350,
       useNativeDriver: true,
     }).start();
   };
@@ -83,10 +84,9 @@ const MessageScreen = () => {
   const handlePaymentCompleted = () => {
     // Handle payment completion
     console.log('Payment completed successfully!');
-
     Animated.timing(sheetAnim, {
-      toValue: 0,
-      duration: 400,
+      toValue: SCREEN_HEIGHT,
+      duration: 350,
       useNativeDriver: true,
     }).start(() => {
       setShowPaymentSheet(false);
@@ -262,25 +262,18 @@ const MessageScreen = () => {
       </View>
 
       {/* Payment Processing Sheet */}
-      {showPaymentSheet && (
-        <Animated.View
-          style={[
-            styles.paymentSheetContainer,
-            {
-              opacity: sheetAnim,
-            },
-          ]}
-        >
-          <CustomBottomSheet
-            message="Processing payment..."
-            backgroundColor="#E6521F"
-            dotColor="#E8F5E8"
-            activeDotColor="#4CAF50"
-            stopAfter={6000}
-            onCompleted={handlePaymentCompleted}
-          />
-        </Animated.View>
-      )}
+      <CustomBottomSheet
+        visible={showPaymentSheet}
+        sheetAnim={sheetAnim}
+        message="Processing Payment..."
+        backgroundColor="#E6521F"
+        dotColor="#E6521F"
+        activeDotColor="#E14434"
+        dotSize={14}
+        animationDuration={900}
+        onCompleted={handlePaymentCompleted}
+        stopAfter={3000}
+      />
     </View>
   );
 };

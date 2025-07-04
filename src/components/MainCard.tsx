@@ -4,6 +4,7 @@ import {
   View,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import React, { useState, useMemo, useRef } from 'react';
 import Icon from 'react-native-vector-icons/Feather';
@@ -17,6 +18,7 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
   const [zipcode, setZipcode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [showCardType, setShowCardType] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const cvvRef = useRef<TextInput>(null);
   const nameRef = useRef<TextInput>(null);
@@ -36,6 +38,13 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
 
   const handleArrowPress = () => {
     if (isAllFieldsFilled && !isVerifying) {
+      const validationError = validateFields();
+      if (validationError) {
+        setError(validationError);
+        Alert.alert('Validation Error', validationError);
+        return;
+      }
+      setError(null);
       setIsVerifying(true);
       setTimeout(() => {
         setIsVerifying(false);
@@ -54,19 +63,104 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
   };
 
   const formatCardNumber = (input: string) => {
-    // Remove all non-digit characters
-    const digits = input.replace(/\D/g, '');
-    // Group into 4s
+    // Only allow digits
+    const digits = input.replace(/[^0-9]/g, '');
     const groups = digits.match(/.{1,4}/g);
     return groups ? groups.join(' ') : '';
   };
 
+  const formatCVV = (input: string) => {
+    return input.replace(/[^0-9]/g, '');
+  };
+
+  const formatZip = (input: string) => {
+    return input.replace(/[^0-9]/g, '');
+  };
+
+  const formatName = (input: string) => {
+    // Only allow letters and spaces
+    return input.replace(/[^a-zA-Z ]/g, '');
+  };
+
   const formatExpiry = (input: string) => {
-    // Remove all non-digit characters
-    const digits = input.replace(/\D/g, '');
+    // Only allow digits
+    let digits = input.replace(/[^0-9]/g, '');
     if (digits.length === 0) return '';
-    if (digits.length <= 2) return digits;
-    return digits.slice(0, 2) + '/' + digits.slice(2, 4);
+    if (digits.length === 1) {
+      // Only allow 0 or 1 as first digit
+      if (parseInt(digits[0], 10) > 1) return '0' + digits[0];
+      return digits;
+    }
+    if (digits.length === 2) {
+      // Only allow 01-12
+      const month = parseInt(digits.slice(0, 2), 10);
+      if (month === 0) return '01';
+      if (month > 12) return '12';
+      return digits;
+    }
+    // Format as MM/YY
+    let month = parseInt(digits.slice(0, 2), 10);
+    if (month === 0) month = 1;
+    if (month > 12) month = 12;
+    let year = digits.slice(2, 4);
+    // Validate year if 4 digits
+    if (digits.length >= 4) {
+      const now = new Date();
+      const currentYear = now.getFullYear() % 100;
+      const currentMonth = now.getMonth() + 1;
+      const inputYear = parseInt(year, 10);
+      if (inputYear < currentYear) {
+        // Don't allow past years
+        return month.toString().padStart(2, '0') + '/';
+      } else if (inputYear === currentYear && month < currentMonth) {
+        // Don't allow past months in current year
+        return currentMonth.toString().padStart(2, '0') + '/' + year;
+      }
+    }
+    return month.toString().padStart(2, '0') + '/' + year;
+  };
+
+  // Validation function for all fields
+  const validateFields = () => {
+    const cleanedCardNumber = cardNumber.replace(/\s/g, '');
+    if (cleanedCardNumber.length !== 16) {
+      return 'Card number must be 16 digits.';
+    }
+    if (!/^[0-9]{16}$/.test(cleanedCardNumber)) {
+      return 'Card number is invalid.';
+    }
+    if (cvv.length !== 3) {
+      return 'CVV must be 3 digits.';
+    }
+    if (!/^[0-9]{3}$/.test(cvv)) {
+      return 'CVV is invalid.';
+    }
+    if (!cardHolderName.trim() || !/^[a-zA-Z ]+$/.test(cardHolderName.trim())) {
+      return 'Card holder name is invalid.';
+    }
+    if (expiry.length !== 5 || !/^[0-9]{2}\/[0-9]{2}$/.test(expiry)) {
+      return 'Expiry date must be in MM/YY format.';
+    }
+    // Expiry date logic
+    const [mm, yy] = expiry.split('/');
+    const month = parseInt(mm, 10);
+    const year = parseInt(yy, 10);
+    const now = new Date();
+    const currentYear = now.getFullYear() % 100;
+    const currentMonth = now.getMonth() + 1;
+    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+      return 'Expiry date cannot be in the past.';
+    }
+    if (month < 1 || month > 12) {
+      return 'Expiry month must be between 01 and 12.';
+    }
+    if (zipcode.length < 5) {
+      return 'Zip code must be at least 5 digits.';
+    }
+    if (!/^[0-9]+$/.test(zipcode)) {
+      return 'Zip code is invalid.';
+    }
+    return null;
   };
 
   return (
@@ -123,8 +217,9 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
                   style={styles.cvvInput}
                   value={cvv}
                   onChangeText={text => {
-                    setCvv(text);
-                    if (text.length === 3) {
+                    const formatted = formatCVV(text);
+                    setCvv(formatted);
+                    if (formatted.length === 3) {
                       nameRef.current?.focus();
                     }
                   }}
@@ -147,7 +242,7 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
                 style={styles.fullWidthInput}
                 value={cardHolderName}
                 onChangeText={text => {
-                  setCardHolderName(text);
+                  setCardHolderName(formatName(text));
                 }}
                 placeholder="John Doe"
                 placeholderTextColor="rgba(255,255,255,0.5)"
@@ -188,7 +283,7 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
                     ref={zipRef}
                     style={styles.smallInput}
                     value={zipcode}
-                    onChangeText={setZipcode}
+                    onChangeText={text => setZipcode(formatZip(text))}
                     placeholder="12345"
                     placeholderTextColor="rgba(255,255,255,0.5)"
                     keyboardType="numeric"
