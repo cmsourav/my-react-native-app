@@ -5,7 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import Icon from 'react-native-vector-icons/Feather';
 import { MainCardProps } from '../types/CardProps';
 
@@ -17,6 +17,11 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
   const [zipcode, setZipcode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [showCardType, setShowCardType] = useState(false);
+
+  const cvvRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInput>(null);
+  const expiryRef = useRef<TextInput>(null);
+  const zipRef = useRef<TextInput>(null);
 
   const isAllFieldsFilled = useMemo(() => {
     const cleanedCardNumber = cardNumber.replace(/\s/g, '');
@@ -46,6 +51,22 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
         }
       }, 3000);
     }
+  };
+
+  const formatCardNumber = (input: string) => {
+    // Remove all non-digit characters
+    const digits = input.replace(/\D/g, '');
+    // Group into 4s
+    const groups = digits.match(/.{1,4}/g);
+    return groups ? groups.join(' ') : '';
+  };
+
+  const formatExpiry = (input: string) => {
+    // Remove all non-digit characters
+    const digits = input.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    if (digits.length <= 2) return digits;
+    return digits.slice(0, 2) + '/' + digits.slice(2, 4);
   };
 
   return (
@@ -79,24 +100,42 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
                 <TextInput
                   style={styles.cardNumberInput}
                   value={cardNumber}
-                  onChangeText={setCardNumber}
+                  onChangeText={text => {
+                    const formatted = formatCardNumber(text);
+                    setCardNumber(formatted);
+                    if (formatted.replace(/\s/g, '').length === 16) {
+                      cvvRef.current?.focus();
+                    }
+                  }}
                   placeholder="1234 5678 9012 3456"
                   placeholderTextColor="rgba(255,255,255,0.5)"
                   keyboardType="numeric"
                   maxLength={19}
+                  returnKeyType="next"
+                  onSubmitEditing={() => cvvRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
               </View>
               <View style={styles.smallInputGroup}>
                 <Text style={styles.inputLabel}>CVV</Text>
                 <TextInput
+                  ref={cvvRef}
                   style={styles.cvvInput}
                   value={cvv}
-                  onChangeText={setCvv}
+                  onChangeText={text => {
+                    setCvv(text);
+                    if (text.length === 3) {
+                      nameRef.current?.focus();
+                    }
+                  }}
                   placeholder="123"
                   placeholderTextColor="rgba(255,255,255,0.5)"
                   keyboardType="numeric"
                   maxLength={4}
                   secureTextEntry
+                  returnKeyType="next"
+                  onSubmitEditing={() => nameRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
               </View>
             </View>
@@ -104,13 +143,18 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
             <View style={styles.fullWidthInputGroup}>
               <Text style={styles.inputLabel}>Card Holder Name</Text>
               <TextInput
+                ref={nameRef}
                 style={styles.fullWidthInput}
                 value={cardHolderName}
-                onChangeText={setCardHolderName}
+                onChangeText={text => {
+                  setCardHolderName(text);
+                }}
                 placeholder="John Doe"
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 autoCapitalize="words"
                 returnKeyType="next"
+                onSubmitEditing={() => expiryRef.current?.focus()}
+                blurOnSubmit={false}
               />
             </View>
 
@@ -119,18 +163,29 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
                 <View style={styles.smallInputGroup}>
                   <Text style={styles.inputLabel}>Expiry Date</Text>
                   <TextInput
+                    ref={expiryRef}
                     style={styles.smallInput}
                     value={expiry}
-                    onChangeText={setExpiry}
+                    onChangeText={text => {
+                      const formatted = formatExpiry(text);
+                      setExpiry(formatted);
+                      if (formatted.length === 5) {
+                        zipRef.current?.focus();
+                      }
+                    }}
                     placeholder="MM/YY"
                     placeholderTextColor="rgba(255,255,255,0.5)"
                     keyboardType="numeric"
                     maxLength={5}
+                    returnKeyType="next"
+                    onSubmitEditing={() => zipRef.current?.focus()}
+                    blurOnSubmit={false}
                   />
                 </View>
                 <View style={[styles.smallInputGroup, { marginLeft: 20 }]}> 
                   <Text style={styles.inputLabel}>Zip Code</Text>
                   <TextInput
+                    ref={zipRef}
                     style={styles.smallInput}
                     value={zipcode}
                     onChangeText={setZipcode}
@@ -138,6 +193,7 @@ const MainCard = ({ onCardVerified }: MainCardProps) => {
                     placeholderTextColor="rgba(255,255,255,0.5)"
                     keyboardType="numeric"
                     maxLength={6}
+                    returnKeyType="done"
                   />
                 </View>
               </View>
